@@ -2,7 +2,7 @@
 import Exchange from './abstract/bydfi.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV } from './base/types.js';
+import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV, TransferEntry, Currency } from './base/types.js';
 import { BadRequest, ExchangeError, InvalidOrder, RateLimitExceeded } from './base/errors.js';
 
 //  ---------------------------------------------------------------------------
@@ -109,11 +109,10 @@ export default class bydfi extends Exchange {
                 'reduceMargin': false,
                 'repayCrossMargin': false,
                 'repayIsolatedMargin': false,
-                'sandbox': true,
                 'setLeverage': true,
                 'setMarginMode': false,
                 'setPositionMode': false,
-                'transfer': false,
+                'transfer': true,
                 'withdraw': false,
             },
             'timeframes': {
@@ -130,7 +129,9 @@ export default class bydfi extends Exchange {
                 '1w': 'W',
                 '1M': 'M',
             },
-            'hostname': 'api.bydfi.com',
+            'apiKey': '8Rfw25q1uta4P8x0823KOrAQIXfWhYEh',
+            'secret': '0XUrovUtTQxfdjC6XSZeTXKU6q18UgI6dnvKf69hOru5wsmXUhWE6HXAnA7Phdck',
+            'hostname': 'api.bydtms.com',
             'urls': {
                 'logo': 'https://github.com/user-attachments/assets/fef8f2f7-4265-46aa-965e-33a91881cb00',
                 'api': {
@@ -162,27 +163,18 @@ export default class bydfi extends Exchange {
                 },
                 'private': {
                     'get': {
-                        'v3/account': 1,
-                        'v3/account-balance': 1,
-                        'v3/fills': 1,
-                        'v3/order-fills': 1,
-                        'v3/order': 1,
-                        'v3/history-orders': 1,
-                        'v3/order-by-client-order-id': 1,
-                        'v3/funding': 1,
-                        'v3/historical-pnl': 1,
-                        'v3/open-orders': 1,
-                        'v3/transfers': 1,
-                        'v3/transfer': 1,
+                        'v1/account/assets': 1,
+                        'v1/account/transfer_records': 1,
+                        'v1/spot/deposit_records': 1,
+                        'v1/spot/withdraw_records': 1,
+                        'v1/swap/account/balance': 1,
+                        'v1/swap/user_data/assets_margin': 1,
+                        'v1/swap/user_data/position_side/dual': 1,
                     },
                     'post': {
-                        'v3/delete-open-orders': 1,
-                        'v3/delete-client-order-id': 1,
-                        'v3/delete-order': 1,
-                        'v3/order': 1,
-                        'v3/set-initial-margin-rate': 1,
-                        'v3/transfer-out': 1,
-                        'v3/contract-transfer-out': 1,
+                        'v1/account/transfer': 1,
+                        'v1/swap/user_data/margin_type': 1,
+                        'v1/swap/user_data/position_side/dual': 1,
                     },
                 },
             },
@@ -215,9 +207,6 @@ export default class bydfi extends Exchange {
             'requiredCredentials': {
                 'apiKey': true,
                 'secret': true,
-                'walletAddress': false,
-                'privateKey': false,
-                'password': true,
             },
             'precisionMode': TICK_SIZE,
             'commonCurrencies': {},
@@ -447,42 +436,49 @@ export default class bydfi extends Exchange {
 
     /**
      * @method
-     * @name bydfi#fetchFundingRate
+     * @name bydfi#fetchSwapFundingRate
      * @description fetch the current funding rate
      * @see https://developers.bydfi.com/swap/market
      * @param {string} symbol unified symbol of the market to fetch the funding rate for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
      */
-    async fetchFundingRate (symbol: string, params = {}): Promise<FundingRate> {
+    async fetchSwapFundingRate (symbol: string, params = {}) {
         await this.loadMarkets ();
-        const market = this.market (symbol);
-        const request: Dict = {
-            'symbol': market['id'],
-        };
+        const request: Dict = {};
+        if (symbol) {
+            const market = this.market (symbol);
+            request['symbol'] = market['id'];
+        }
         const response = await this.publicGetV1SwapMarketFundingRate (this.extend (request, params));
-        const data = this.safeDict (response, 'data', {});
-        return this.parseFundingRate (data, market);
+        if (symbol) {
+            const data = this.safeList (response, 'data', []);
+            const rawFundingRate = this.safeDict (data, 0, {});
+            return this.parseSwapFundingRate (rawFundingRate);
+        } else {
+            const data = this.safeList (response, 'data', []);
+            const result = [];
+            for (let i = 0; i < data.length; i++) {
+                result.push (this.parseSwapFundingRate (data[i]));
+            }
+            return result;
+        }
     }
 
     /**
      * @method
-     * @name bydfi#parseFundingRate
+     * @name bydfi#parseSwapFundingRate
      * @description parse funding rate structure
      * @param {object} funding funding rate data from exchange
-     * @param {object} market market object
      * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
      */
-    parseFundingRate (funding: any, market: Market = undefined): FundingRate {
-        const marketId = this.safeString (funding, 'symbol');
-        market = this.safeMarket (marketId, market);
-        const symbol = this.safeSymbol (marketId, market);
+    parseSwapFundingRate (funding: any): FundingRate {
         const fundingRate = this.safeNumber (funding, 'lastFundingRate');
         const nextFundingTime = this.safeInteger (funding, 'nextFundingTime');
         const timestamp = this.safeInteger (funding, 'time');
         return {
             'info': funding,
-            'symbol': symbol,
+            'symbol': funding.symbol,
             'markPrice': undefined,
             'indexPrice': undefined,
             'interestRate': undefined,
@@ -504,7 +500,7 @@ export default class bydfi extends Exchange {
 
     /**
      * @method
-     * @name bydfi#fetchFundingHistory
+     * @name bydfi#fetchSwapFundingHistory
      * @description fetches information on multiple orders made by the user *classic accounts only*
      * @see https://api-docs.pro.bydfi.exchange/#publicapi-v3-for-omni-get-funding-rate-history-v3
      * @param {string} symbol unified market symbol of the market orders were made in
@@ -514,7 +510,7 @@ export default class bydfi extends Exchange {
      * @param {object} [params.endTime] end time, ms
      * @returns {Trade[]} a list of [trade structures]{@link https://docs.ccxt.com/#/?id=funding-history-structure}
      */
-    async fetchFundingHistory (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
+    async fetchSwapFundingHistory (symbol: Str = undefined, since: Int = undefined, limit: Int = undefined, params = {}) {
         await this.loadMarkets ();
         const request: Dict = {};
         let market = undefined;
@@ -535,24 +531,27 @@ export default class bydfi extends Exchange {
         }
         const response = await this.publicGetV1SwapMarketFundingRateHistory (this.extend (request, params));
         const data = this.safeList (response, 'data', []);
-        return this.parseIncomes (data, market, since, limit);
+        return this.parseSwapFundingHistory (data);
     }
 
-    parseIncome (income, market: Market = undefined) {
-        const marketId = this.safeString (income, 'symbol');
-        market = this.safeMarket (marketId, market);
+    parseSwapFundingHistory (list) {
         const code = 'USDT';
-        const timestamp = this.safeInteger (income, 'fundingTime');
-        return {
-            'info': income,
-            'symbol': this.safeSymbol (marketId, market),
-            'code': code,
-            'timestamp': timestamp,
-            'datetime': this.iso8601 (timestamp),
-            'id': this.safeString (income, 'symbol'),
-            'amount': 0,
-            'rate': this.safeNumber (income, 'fundingRate'),
-        };
+        const result = [];
+        for (let i = 0; i < list.length; i++) {
+            const income = list[i];
+            const timestamp = this.safeInteger (income, 'fundingTime');
+            result.push ({
+                'info': income,
+                'symbol': this.safeString (income, 'symbol'),
+                'code': code,
+                'timestamp': timestamp,
+                'datetime': this.iso8601 (timestamp),
+                'id': this.safeString (income, 'symbol'),
+                'amount': 0,
+                'rate': this.safeNumber (income, 'fundingRate'),
+            });
+        }
+        return result;
     }
 
     /**
@@ -818,35 +817,322 @@ export default class bydfi extends Exchange {
     sign (path, api = 'public', method = 'GET', params = {}, headers = undefined, body = undefined) {
         let url = this.implodeHostname (this.urls['api'][api]) + '/' + path;
         headers = {
-            'User-Agent': 'bydfi-CCXT',
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
         };
-        let signPath = '/api/' + path;
         let signBody = body;
         if (method.toUpperCase () !== 'POST') {
             if (Object.keys (params).length) {
-                signPath += '?' + this.rawencode (params);
                 url += '?' + this.rawencode (params);
             }
         } else {
-            const sortedQuery = this.keysort (params);
-            signBody = this.rawencode (sortedQuery);
+            signBody = JSON.stringify (params);
         }
         if (api === 'private') {
             this.checkRequiredCredentials ();
             const timestamp = this.milliseconds ().toString ();
-            let messageString = timestamp + method.toUpperCase () + signPath;
+            const parts = this.rawencode (params).split ('&');
+            parts.sort ();
+            const parseParams = parts.join ('&');
+            let messageString = this.apiKey + timestamp;
+            if (method === 'GET') {
+                messageString = messageString + parseParams;
+            }
             if (signBody !== undefined) {
                 messageString = messageString + signBody;
             }
-            const signature = this.hmac (this.encode (messageString), this.encode (this.stringToBase64 (this.secret)), sha256, 'base64');
-            headers['APEX-SIGNATURE'] = signature;
-            headers['APEX-API-KEY'] = this.apiKey;
-            headers['APEX-TIMESTAMP'] = timestamp;
-            headers['APEX-PASSPHRASE'] = this.password;
+            const signature = this.hmac (messageString, this.secret, sha256);
+            headers['X-API-KEY'] = this.apiKey;
+            headers['X-API-TIMESTAMP'] = timestamp;
+            headers['X-API-SIGNATURE'] = signature;
         }
         return { 'url': url, 'method': method, 'body': signBody, 'headers': headers };
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchAccountAssets
+     * @description Get account asset information
+     * @see https://developers.bydfi.com/account
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.walletType] wallet type: spot / fund
+     * @param {string} [params.asset] asset currency, such as BTC, USDT
+     * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
+     */
+    async fetchAccountAssets (params = {}) {
+        const request = {};
+        const walletType = this.safeString (params, 'walletType');
+        const asset = this.safeString (params, 'asset');
+        if (walletType !== undefined) {
+            request['walletType'] = walletType;
+        }
+        if (asset !== undefined) {
+            request['asset'] = asset;
+        }
+        const response = await this.privateGetV1AccountAssets (this.extend (request, params));
+        return this.safeList (response, 'data', []);
+    }
+
+    /**
+     * @method
+     * @name bydfi#parseAccountAssets
+     * @description Parse account balance response
+     * @param {object} response API response data
+     * @returns {object} standardized balance structure
+     */
+    parseAccountAssets (response) {
+        const data = this.safeList (response, 'data', []);
+        const result = {
+            'info': data,
+            'timestamp': this.milliseconds (),
+            'datetime': this.iso8601 (this.milliseconds ()),
+        };
+        for (let i = 0; i < data.length; i++) {
+            const asset = data[i];
+            const walletType = this.safeString (asset, 'walletType'); // spot / fund
+            const currencyId = this.safeString (asset, 'asset');
+            const code = this.safeCurrencyCode (currencyId);
+            // Create different accounts for different wallet types
+            const accountKey = walletType === 'spot' ? code : code + '_' + walletType;
+            const account = this.account ();
+            account['free'] = this.safeString (asset, 'available');    // Available balance
+            account['used'] = this.safeString (asset, 'frozen');       // Frozen balance
+            account['total'] = this.safeString (asset, 'total');       // Total balance
+            result[accountKey] = account;
+        }
+        return this.safeBalance (result);
+    }
+
+    /**
+     * @method
+     * @name bydfi#transfer
+     * @description transfer currency internally between wallets on the same account
+     * @param {string} code unified currency code
+     * @param {float} amount amount to transfer
+     * @param {string} fromAccount account to transfer from, 來源錢包類型 SPOT / SWAP / FUND
+     * @param {string} toAccount account to transfer to, 目標錢包類型 SPOT / SWAP / FUND
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} a [transfer structure]{@link https://docs.ccxt.com/#/?id=transfer-structure}
+     */
+    async transfer (code: string, amount: number, fromAccount: string, toAccount: string, params = {}): Promise<TransferEntry> {
+        await this.loadMarkets ();
+        const request: Dict = {
+            'asset': code,
+            'fromType': fromAccount,
+            'toType': toAccount,
+            'amount': amount,
+        };
+        const response = await this.privatePostV1AccountTransfer (this.extend (request, params));
+        const currentTime = this.milliseconds ();
+        return this.parseTransfer (this.extend (response, {
+            'timestamp': currentTime,
+            'datetime': this.iso8601 (currentTime),
+            'amount': this.parseNumber (amount),
+            'fromAccount': fromAccount,
+            'toAccount': toAccount,
+            'code': code,
+        }));
+    }
+
+    parseTransfer (transfer: Dict, currency: Currency = undefined): TransferEntry {
+        const timestamp = this.safeInteger (transfer, 'timestamp');
+        const fromAccount = this.safeString (transfer, 'fromAccount');
+        const toAccount = this.safeString (transfer, 'toAccount');
+        const code = this.safeString (transfer, 'code');
+        return {
+            'info': transfer,
+            'id': this.safeStringN (transfer, [ 'transferId', 'id' ]),
+            'timestamp': timestamp,
+            'datetime': this.iso8601 (timestamp),
+            'currency': code,
+            'amount': this.safeNumber (transfer, 'amount'),
+            'fromAccount': fromAccount,
+            'toAccount': toAccount,
+            'status': this.safeBool (transfer, 'success') ? 'success' : 'error',
+        };
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchTransferRecords
+     * @description fetch transfer records
+     * @param {string} asset asset currency, e.g. BTC, USDT
+     * @param {number} startTime start timestamp (milliseconds)
+     * @param {number} endTime end timestamp (milliseconds)
+     * @param {number} [page] page number, starting from 1, default is 1
+     * @param {number} [rows] number of records per page, default is 10
+     * @returns {object[]} list of transfer records
+     */
+    async fetchTransferRecords (asset: string, startTime: number, endTime: number, page = undefined, rows = undefined) {
+        const request = {
+            'asset': asset,
+            'startTime': startTime,
+            'endTime': endTime,
+        };
+        if (page !== undefined) {
+            request['page'] = page;
+        }
+        if (rows !== undefined) {
+            request['rows'] = rows;
+        }
+        const response = await this.privateGetV1AccountTransferRecords (request);
+        return this.safeList (response, 'data', []);
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchSpotDepositRecords
+     * @description fetch spot deposit records
+     * @param {string} asset asset currency, e.g. BTC, USDT
+     * @param {number} startTime start timestamp (milliseconds)
+     * @param {number} endTime end timestamp (milliseconds)
+     * @param {number} [limit] number of records to return, default is 500, maximum is 1000
+     * @returns {object[]} list of deposit records
+     */
+    async fetchSpotDepositRecords (asset: string, startTime: number, endTime: number, limit = 500) {
+        const request = {
+            'asset': asset,
+            'startTime': startTime,
+            'endTime': endTime,
+            'limit': limit,
+        };
+        // Check if time range exceeds 7 days
+        const sevenDays = 7 * 24 * 60 * 60 * 1000; // milliseconds in 7 days
+        if ((endTime - startTime) > sevenDays) {
+            throw new BadRequest (this.id + ' fetchSpotDepositRecords() time range cannot exceed 7 days');
+        }
+        // Check if time range exceeds 6 months
+        const sixMonths = 6 * 30 * 24 * 60 * 60 * 1000; // milliseconds in 6 months
+        if ((endTime - startTime) > sixMonths) {
+            throw new BadRequest (this.id + ' fetchSpotDepositRecords() time range cannot exceed 6 months');
+        }
+        const response = await this.privateGetV1SpotDepositRecords (request);
+        return this.safeList (response, 'data', []);
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchSpotWithdrawRecords
+     * @description fetch spot withdraw records
+     * @param {string} asset asset currency, e.g. BTC, USDT
+     * @param {number} startTime start timestamp (milliseconds)
+     * @param {number} endTime end timestamp (milliseconds)
+     * @param {number} [limit] number of records to return, default is 500, maximum is 1000
+     * @returns {object[]} list of deposit records
+     */
+    async fetchSpotWithdrawRecords (asset: string, startTime: number, endTime: number, limit = 500) {
+        const request = {
+            'asset': asset,
+            'startTime': startTime,
+            'endTime': endTime,
+            'limit': limit,
+        };
+        // Check if time range exceeds 7 days
+        const sevenDays = 7 * 24 * 60 * 60 * 1000; // milliseconds in 7 days
+        if ((endTime - startTime) > sevenDays) {
+            throw new BadRequest (this.id + ' fetchSpotWithdrawRecords() time range cannot exceed 7 days');
+        }
+        // Check if time range exceeds 6 months
+        const sixMonths = 6 * 30 * 24 * 60 * 60 * 1000; // milliseconds in 6 months
+        if ((endTime - startTime) > sixMonths) {
+            throw new BadRequest (this.id + ' fetchSpotWithdrawRecords() time range cannot exceed 6 months');
+        }
+        const response = await this.privateGetV1SpotWithdrawRecords (request);
+        return this.safeList (response, 'data', []);
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchSwapBalance
+     * @description fetch swap account balance information
+     * @param {string} wallet wallet identifier, e.g. 'W001'
+     * @param {string} [asset] asset currency, e.g. BTC, USDT - if not specified, returns all assets
+     * @returns {object[]} list of balance information for the specified wallet
+     */
+    async fetchSwapBalance (wallet: string, asset = undefined) {
+        const request = {
+            'wallet': wallet,
+        };
+        if (asset !== undefined) {
+            request['asset'] = asset;
+        }
+        const response = await this.privateGetV1SwapAccountBalance (request);
+        return this.safeList (response, 'data', []);
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchSwapMarginType
+     * @description fetch swap margin type
+     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
+     * @param {string} wallet wallet identifier, e.g. 'W001'
+     * @param {string} symbol symbol, e.g. 'BTC-USDT'
+     * @returns {object[]} list of margin type information
+     */
+    async fetchSwapMarginType (contractType: string, wallet: string, symbol: string) {
+        const request = {
+            'contractType': contractType,
+            'wallet': wallet,
+            'symbol': symbol,
+        };
+        const response = await this.privateGetV1SwapUserDataAssetsMargin (request);
+        return this.safeDict (response, 'data', {});
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchSwapPositionSideDual
+     * @description fetch swap position side dual
+     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
+     * @param {string} wallet wallet identifier, e.g. 'W001'
+     * @returns {object[]} list of position side dual information
+     */
+    async fetchSwapPositionSideDual (contractType: string, wallet: string) {
+        const request = {
+            'contractType': contractType,
+            'wallet': wallet,
+        };
+        const response = await this.privateGetV1SwapUserDataPositionSideDual (request);
+        return this.safeDict (response, 'data', {});
+    }
+
+    /**
+     * @method
+     * @name bydfi#convertMarginType
+     * @description convert margin type
+     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
+     * @param {string} symbol symbol, e.g. 'BTC-USDT'
+     * @param {string} wallet wallet identifier, e.g. 'W001'
+     * @param {string} marginType margin type, value can be ISOLATED or CROSS
+     * @returns {boolean} true if success, false if failed
+     */
+    async convertMarginType (contractType: string, symbol: string, wallet: string, marginType: string) {
+        const request = {
+            'contractType': contractType,
+            'symbol': symbol,
+            'wallet': wallet,
+            'marginType': marginType,
+        };
+        const response = await this.privatePostV1SwapUserDataMarginType (request);
+        return this.safeBool (response, 'success');
+    }
+
+    /**
+     * @method
+     * @name bydfi#convertPositionSideDual
+     * @description convert position side dual
+     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
+     * @param {string} wallet wallet identifier, e.g. 'W001'
+     * @param {string} positionType position type, value can be HEDGE or ONEWAY
+     * @returns {boolean} true if success, false if failed
+     */
+    async convertPositionSide (contractType: string, wallet: string, positionType: string) {
+        const request = {
+            'contractType': contractType,
+            'wallet': wallet,
+            'positionType': positionType,
+        };
+        const response = await this.privatePostV1SwapUserDataPositionSideDual (request);
+        return this.safeBool (response, 'success');
     }
 
     handleErrors (code: int, reason: string, url: string, method: string, headers: Dict, body: string, response, requestHeaders, requestBody) {
