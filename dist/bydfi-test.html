@@ -14,7 +14,21 @@
         
         const bydfi = new ccxt.bydfi();
         window.bydfi = bydfi;
-        const result = await bydfi.convertPositionSide('DELIVERY', 'W001', 'ONEWAY');
+        // const result = await bydfi.convertPositionSide('DELIVERY', 'W001', 'ONEWAY');
+        // const result = await bydfi.createOrder('BTC/USDT:USDT', 'limit', 'buy', 133, 105000, {
+        //   'wallet': 'W001',
+        //   'quantity': 0.0001,
+        //   'positionSide': 'LONG',
+        //   'timeInForce': 'GTC',
+        // });
+        // const result = await bydfi.setLeverage(10, 'BTC/USDT:USDT', {
+        //   'wallet': 'W001',
+        // });
+        // const result = await bydfi.setBatchLeverage(10, ['BTC/USDT:USDT', 'ETH/USDT:USDT'], 'W001');
+        const result = await bydfi.setPositionMode(false, 'BTC/USDT:USDT', {
+          'wallet': 'W001',
+          'contractType': 'FUTURE',
+        });
         console.log('result:', result);
         // 测试所有方法
         // try {

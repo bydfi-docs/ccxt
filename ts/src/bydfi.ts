@@ -2,7 +2,7 @@
 import Exchange from './abstract/bydfi.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV, TransferEntry, Currency } from './base/types.js';
+import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV, TransferEntry, Currency, Leverage, List, Strings, MarginMode } from './base/types.js';
 import { BadRequest, ExchangeError, InvalidOrder, RateLimitExceeded } from './base/errors.js';
 
 //  ---------------------------------------------------------------------------
@@ -73,10 +73,10 @@ export default class bydfi extends Exchange {
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
                 'fetchLedger': false,
-                'fetchLeverage': false,
+                'fetchLeverage': true,
                 'fetchLeverageTiers': false,
                 'fetchLiquidations': false,
-                'fetchMarginMode': false,
+                'fetchMarginMode': true,
                 'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': false,
@@ -92,7 +92,7 @@ export default class bydfi extends Exchange {
                 'fetchOrders': true,
                 'fetchOrderTrades': true,
                 'fetchPosition': false,
-                'fetchPositionMode': false,
+                'fetchPositionMode': true,
                 'fetchPositions': true,
                 'fetchPositionsRisk': false,
                 'fetchPremiumIndexOHLCV': false,
@@ -110,8 +110,8 @@ export default class bydfi extends Exchange {
                 'repayCrossMargin': false,
                 'repayIsolatedMargin': false,
                 'setLeverage': true,
-                'setMarginMode': false,
-                'setPositionMode': false,
+                'setMarginMode': true,
+                'setPositionMode': true,
                 'transfer': true,
                 'withdraw': false,
             },
@@ -170,11 +170,15 @@ export default class bydfi extends Exchange {
                         'v1/swap/account/balance': 1,
                         'v1/swap/user_data/assets_margin': 1,
                         'v1/swap/user_data/position_side/dual': 1,
+                        '/v1/swap/trade/leverage': 1,
                     },
                     'post': {
                         'v1/account/transfer': 1,
                         'v1/swap/user_data/margin_type': 1,
                         'v1/swap/user_data/position_side/dual': 1,
+                        'v1/swap/trade/place_order': 1,
+                        '/v1/swap/trade/leverage': 1,
+                        '/v1/swap/trade/batch_leverage': 1,
                     },
                 },
             },
@@ -1061,78 +1065,220 @@ export default class bydfi extends Exchange {
 
     /**
      * @method
-     * @name bydfi#fetchSwapMarginType
+     * @name bydfi#fetchMarginMode
      * @description fetch swap margin type
-     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
-     * @param {string} wallet wallet identifier, e.g. 'W001'
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
-     * @returns {object[]} list of margin type information
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
+     * @param {string} [params.wallet] wallet identifier, e.g. 'W001'
+     * @returns {object} an [margin mode structure]{@link https://docs.ccxt.com/#/?id=margin-mode-structure}
      */
-    async fetchSwapMarginType (contractType: string, wallet: string, symbol: string) {
+    async fetchMarginMode (symbol: string, params = {}): Promise<MarginMode> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
         const request = {
-            'contractType': contractType,
-            'wallet': wallet,
-            'symbol': symbol,
+            'symbol': market['id'],
         };
+        const contractType = this.safeString (params, 'contractType');
+        if (contractType !== undefined) {
+            request['contractType'] = contractType;
+        } else {
+            throw new BadRequest (this.id + ' fetchMarginMode() requires a contractType parameter');
+        }
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet !== undefined) {
+            request['wallet'] = wallet;
+        } else {
+            throw new BadRequest (this.id + ' fetchMarginMode() requires a wallet parameter');
+        }
         const response = await this.privateGetV1SwapUserDataAssetsMargin (request);
-        return this.safeDict (response, 'data', {});
-    }
-
-    /**
-     * @method
-     * @name bydfi#fetchSwapPositionSideDual
-     * @description fetch swap position side dual
-     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
-     * @param {string} wallet wallet identifier, e.g. 'W001'
-     * @returns {object[]} list of position side dual information
-     */
-    async fetchSwapPositionSideDual (contractType: string, wallet: string) {
-        const request = {
-            'contractType': contractType,
-            'wallet': wallet,
+        const res = this.safeDict (response, 'data', {});
+        return {
+            'info': res,
+            'symbol': this.safeString (res, 'symbol'),
+            'marginMode': this.safeString (res, 'marginType'),
         };
-        const response = await this.privateGetV1SwapUserDataPositionSideDual (request);
-        return this.safeDict (response, 'data', {});
     }
 
     /**
      * @method
-     * @name bydfi#convertMarginType
-     * @description convert margin type
-     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
+     * @name bydfi#setMarginMode
+     * @description set margin mode
+     * @param {string} marginMode margin mode, value can be ISOLATED or CROSS
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
-     * @param {string} wallet wallet identifier, e.g. 'W001'
-     * @param {string} marginType margin type, value can be ISOLATED or CROSS
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
+     * @param {string} [params.wallet] wallet identifier, e.g. 'W001'
      * @returns {boolean} true if success, false if failed
      */
-    async convertMarginType (contractType: string, symbol: string, wallet: string, marginType: string) {
+    async setMarginMode (marginMode: string, symbol: Str = undefined, params = {}): Promise<boolean> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
         const request = {
-            'contractType': contractType,
-            'symbol': symbol,
-            'wallet': wallet,
-            'marginType': marginType,
+            'symbol': market['id'],
+            'marginType': marginMode,
         };
+        const contractType = this.safeString (params, 'contractType');
+        if (contractType !== undefined) {
+            request['contractType'] = contractType;
+        } else {
+            throw new BadRequest (this.id + ' setMarginMode() requires a contractType parameter');
+        }
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet !== undefined) {
+            request['wallet'] = wallet;
+        } else {
+            throw new BadRequest (this.id + ' setMarginMode() requires a wallet parameter');
+        }
         const response = await this.privatePostV1SwapUserDataMarginType (request);
         return this.safeBool (response, 'success');
     }
 
     /**
      * @method
-     * @name bydfi#convertPositionSideDual
+     * @name bydfi#fetchPositionMode
+     * @description fetch swap position mode
+     * @param {string} symbol symbol, e.g. 'BTC-USDT'
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
+     * @param {string} [params.wallet] wallet identifier, e.g. 'W001'
+     * @returns {object} object of position mode information
+     */
+    async fetchPositionMode (symbol: Str = undefined, params = {}) {
+        const request = {};
+        const contractType = this.safeString (params, 'contractType');
+        if (contractType !== undefined) {
+            request['contractType'] = contractType;
+        } else {
+            throw new BadRequest (this.id + ' fetchPositionMode() requires a contractType parameter');
+        }
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet !== undefined) {
+            request['wallet'] = wallet;
+        } else {
+            throw new BadRequest (this.id + ' fetchPositionMode() requires a wallet parameter');
+        }
+        const response = await this.privateGetV1SwapUserDataPositionSideDual (request);
+        return this.safeDict (response, 'data', {});
+    }
+
+    /**
+     * @method
+     * @name bydfi#setPositionMode
      * @description convert position side dual
-     * @param {string} contractType contract type, value can be FUTURE or DELIVERY
-     * @param {string} wallet wallet identifier, e.g. 'W001'
-     * @param {string} positionType position type, value can be HEDGE or ONEWAY
+     * @param {boolean} hedged true, false; 雙向持倉模式下，true 為對沖模式，false 為單向持倉模式
+     * @param {string} symbol symbol, e.g. 'BTC-USDT'
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
+     * @param {string} [params.wallet] wallet identifier, e.g. 'W001'
+     * @param {string} [params.positionType] position type, value can be HEDGE or ONEWAY
      * @returns {boolean} true if success, false if failed
      */
-    async convertPositionSide (contractType: string, wallet: string, positionType: string) {
+    async setPositionMode (hedged: boolean, symbol: Str = undefined, params = {}): Promise<boolean> {
         const request = {
-            'contractType': contractType,
-            'wallet': wallet,
-            'positionType': positionType,
+            'positionType': hedged ? 'HEDGE' : 'ONEWAY',
         };
+        const contractType = this.safeString (params, 'contractType');
+        if (contractType !== undefined) {
+            request['contractType'] = contractType;
+        } else {
+            throw new BadRequest (this.id + ' setPositionMode() requires a contractType parameter');
+        }
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet !== undefined) {
+            request['wallet'] = wallet;
+        } else {
+            throw new BadRequest (this.id + ' setPositionMode() requires a wallet parameter');
+        }
         const response = await this.privatePostV1SwapUserDataPositionSideDual (request);
         return this.safeBool (response, 'success');
+    }
+
+    /**
+     * @method
+     * @name bydfi#fetchLeverage
+     * @description fetch leverage for single trading pair
+     * @see https://developers.bydtms.com/en/swap/trade#get-leverage-for-single-trading-pair
+     * @param {string} symbol
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.wallet] string
+     * @returns {object} a [leverage structure]{@link https://docs.ccxt.com/#/?id=leverage-structure}
+     */
+    async fetchLeverage (symbol: string, params = {}): Promise<Leverage> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
+        const request: Dict = {
+            'symbol': market['id'],
+        };
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet) {
+            request['wallet'] = wallet.toUpperCase ();
+        } else {
+            throw new BadRequest (this.id + ' fetchLeverage() requires a wallet parameter');
+        }
+        const response = await this.privateGetV1SwapTradeLeverage (request);
+        const res = this.safeDict (response, 'data', {});
+        return {
+            'info': res,
+            'symbol': this.safeString (res, 'symbol'),
+            'marginMode': '',
+            'longLeverage': this.safeNumber (res, 'leverage'),
+            'shortLeverage': this.safeNumber (res, 'leverage'),
+        };
+    }
+
+    /**
+     * @method
+     * @name bydfi#setLeverage
+     * @description set leverage for single trading pair
+     * @see https://developers.bydtms.com/en/swap/trade#set-leverage-for-single-trading-pair
+     * @param {number} leverage
+     * @param {string} [symbol]
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.wallet] string
+     * @returns {boolean} true if success, false if failed
+     */
+    async setLeverage (leverage: Int, symbol: Str = undefined, params = {}): Promise<boolean> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
+        const request: Dict = {
+            'symbol': market['id'],
+            'leverage': leverage,
+        };
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet) {
+            request['wallet'] = wallet.toUpperCase ();
+        } else {
+            throw new BadRequest (this.id + ' setLeverage() requires a wallet parameter');
+        }
+        const response = await this.privatePostV1SwapTradeLeverage (request);
+        return this.safeBool (response, 'success');
+    }
+
+    /**
+     * @method
+     * @name bydfi#setBatchLeverage
+     * @description set leverage for multiple trading pairs
+     * @see https://developers.bydtms.com/en/swap/trade#set-leverage-for-multiple-trading-pairs
+     * @param {number} leverage
+     * @param {Array} symbols
+     * @param {string} wallet
+     * @returns {Array} list of leverage information
+     */
+    async setBatchLeverage (leverage: Int, symbols: Strings, wallet: string = undefined): Promise<List[]> {
+        await this.loadMarkets ();
+        const symbolList = [];
+        for (let i = 0; i < symbols.length; i++) {
+            const market = this.market (symbols[i]);
+            symbolList.push (market['id']);
+        }
+        const request: Dict = {
+            'leverage': leverage,
+            'symbols': symbolList,
+            'wallet': wallet,
+        };
+        const response = await this.privatePostV1SwapTradeBatchLeverage (request);
+        return this.safeList (response, 'data', []);
     }
 
     handleErrors (code: int, reason: string, url: string, method: string, headers: Dict, body: string, response, requestHeaders, requestBody) {
