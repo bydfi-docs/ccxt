@@ -2,7 +2,7 @@
 import Exchange from './abstract/bydfi.js';
 import { TICK_SIZE } from './base/functions/number.js';
 import { sha256 } from './static_dependencies/noble-hashes/sha256.js';
-import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV, TransferEntry, Currency, Leverage, List, Strings, MarginMode } from './base/types.js';
+import { MarketInterface, Dict, Market, Ticker, int, Str, FundingRate, Int, LastPrice, Trade, OHLCV, TransferEntry, Currency, Leverage, List, Strings, MarginMode, OrderSide, OrderType, Num, Order } from './base/types.js';
 import { BadRequest, ExchangeError, InvalidOrder, RateLimitExceeded } from './base/errors.js';
 
 //  ---------------------------------------------------------------------------
@@ -179,6 +179,7 @@ export default class bydfi extends Exchange {
                         'v1/swap/trade/place_order': 1,
                         '/v1/swap/trade/leverage': 1,
                         '/v1/swap/trade/batch_leverage': 1,
+                        '/v1/swap/trade/cancel_order': 1,
                     },
                 },
             },
@@ -1253,6 +1254,172 @@ export default class bydfi extends Exchange {
         }
         const response = await this.privatePostV1SwapTradeLeverage (request);
         return this.safeBool (response, 'success');
+    }
+
+    /**
+     * @method
+     * @name bydfi#createOrder
+     * @description create an order on the exchange
+     * @see https://developers.bydfi.com/swap/trade#placing-an-order
+     * @param {string} symbol unified symbol of the market to create an order in
+     * @param {string} type 'market' or 'limit'
+     * @param {string} side 'buy' or 'sell'
+     * @param {float} amount how much of currency you want to trade in units of base currency
+     * @param {float} [price] the price at which the order is to be full filled, in units of the quote currency, ignored in market orders
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.wallet] string
+     * @param {string} [params.positionSide] 持倉方向，單向持倉模式下非必填，預設且僅可填BOTH;在雙向持倉模式下必填,且僅可選擇 LONG 或 SHORT
+     * @param {boolean} [params.reduceOnly] true, false; 非雙開模式下預設false；雙開模式下不接受此參數； 使用closePosition不支援此參數
+     * @param {float} [params.quantity] 下單數量,使用closePosition不支援此參數
+     * @param {string} [params.clientOrderId] 使用者自訂的訂單號，不可重複出現在掛單中。如空缺系統會自動賦值
+     * @param {float} [params.stopPrice] 觸發價, 僅 STOP, STOP_MARKET, TAKE_PROFIT, TAKE_PROFIT_MARKET 需要此參數
+     * @param {boolean} [params.closePosition] true, false；觸發後全部平倉，僅支援STOP_MARKET和TAKE_PROFIT_MARKET；不與quantity合用；自帶只平倉效果，不與reduceOnly 合用
+     * @param {float} [params.activationPrice] 追蹤停損啟動價格，僅TRAILING_STOP_MARKET 需要此參數, 預設為下單當前市場價格(支援不同workingType)
+     * @param {float} [params.callbackRate] 追蹤停損回調比例，可取值範圍[0.1, 5],其中 1代表1% ,僅TRAILING_STOP_MARKET 需要此參數
+     * @param {string} [params.timeInForce] 'GTC', 'FOK', 'POST_ONLY', 'IOC', 'TRAILING_STOP'
+     * @param {string} [params.workingType] stopPrice 觸發類型: MARK_PRICE(標記價格), CONTRACT_PRICE(合約最新價). 預設 CONTRACT_PRICE
+     * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+     */
+    async createOrder (symbol: string, type: OrderType, side: OrderSide, amount: number, price: Num = undefined, params = {}): Promise<Order> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
+        // 验证必需参数
+        if (!symbol) {
+            throw new BadRequest (this.id + ' createOrder() requires a symbol parameter');
+        }
+        if (!type) {
+            throw new BadRequest (this.id + ' createOrder() requires a type parameter');
+        }
+        if (!side) {
+            throw new BadRequest (this.id + ' createOrder() requires a side parameter');
+        }
+        if (!amount) {
+            throw new BadRequest (this.id + ' createOrder() requires an amount parameter');
+        }
+        if (amount <= 0) {
+            throw new BadRequest (this.id + ' createOrder() amount must be greater than 0');
+        }
+        // 验证价格参数
+        if (type === 'limit' && !price) {
+            throw new BadRequest (this.id + ' createOrder() requires a price parameter for limit orders');
+        }
+        if (type === 'limit' && price <= 0) {
+            throw new BadRequest (this.id + ' createOrder() price must be greater than 0 for limit orders');
+        }
+        const request: Dict = {
+            'symbol': market['id'],
+            'type': type.toUpperCase (),
+            'side': side.toUpperCase (),
+            'quantity': amount,
+        };
+        // 添加价格参数（限价单必需）
+        if (type === 'limit' && price) {
+            request['price'] = price;
+        }
+        // 处理额外参数
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet) {
+            request['wallet'] = wallet.toUpperCase ();
+        }
+        const positionSide = this.safeString (params, 'positionSide');
+        if (positionSide !== undefined) {
+            request['positionSide'] = positionSide.toUpperCase ();
+        }
+        const reduceOnly = this.safeBool (params, 'reduceOnly');
+        if (reduceOnly !== undefined) {
+            request['reduceOnly'] = reduceOnly;
+        }
+        const clientOrderId = this.safeString (params, 'clientOrderId');
+        if (clientOrderId !== undefined) {
+            request['clientOrderId'] = clientOrderId;
+        }
+        const stopPrice = this.safeNumber (params, 'stopPrice');
+        if (stopPrice !== undefined) {
+            request['stopPrice'] = this.priceToPrecision (symbol, stopPrice);
+        }
+        const closePosition = this.safeBool (params, 'closePosition');
+        if (closePosition !== undefined) {
+            request['closePosition'] = closePosition;
+        }
+        const activationPrice = this.safeNumber (params, 'activationPrice');
+        if (activationPrice !== undefined) {
+            request['activationPrice'] = this.priceToPrecision (symbol, activationPrice);
+        }
+        const callbackRate = this.safeNumber (params, 'callbackRate');
+        if (callbackRate !== undefined) {
+            request['callbackRate'] = callbackRate;
+        }
+        const timeInForce = this.safeString (params, 'timeInForce');
+        if (timeInForce !== undefined) {
+            request['timeInForce'] = timeInForce.toUpperCase ();
+        }
+        const workingType = this.safeString (params, 'workingType');
+        if (workingType !== undefined) {
+            request['workingType'] = workingType.toUpperCase ();
+        }
+        const response = await this.privatePostV1SwapTradePlaceOrder (request);
+        return this.parseOrder (response, market);
+    }
+
+    parseOrder (response: Dict, market: Market = undefined): Order {
+        const order = this.safeDict (response, 'data', {});
+        return {
+            'id': this.safeString (order, 'orderId'),
+            'clientOrderId': this.safeString (order, 'clientOrderId'),
+            'datetime': this.iso8601 (this.safeInteger (order, 'createTime')),
+            'timestamp': this.safeInteger (order, 'createTime'),
+            'lastTradeTimestamp': this.safeInteger (order, 'updateTime'),
+            'lastUpdateTimestamp': this.safeInteger (order, 'updateTime'),
+            'status': this.safeString (order, 'status'),
+            'symbol': this.safeString (order, 'symbol'),
+            'type': this.safeString (order, 'orderType'),
+            'timeInForce': this.safeString (order, 'timeInForce'),
+            'side': this.safeString (order, 'side'),
+            'price': this.safeNumber (order, 'price'),
+            'average': this.safeNumber (order, 'avgPrice'),
+            'amount': this.safeNumber (order, 'origQty'),
+            'filled': this.safeNumber (order, 'executedQty'),
+            'remaining': this.safeNumber (order, 'origQty') - this.safeNumber (order, 'executedQty'),
+            'stopPrice': this.safeNumber (order, 'stopPrice'),
+            'reduceOnly': this.safeBool (order, 'reduceOnly'),
+            'cost': this.safeNumber (order, 'cost'),
+            'trades': [],
+            'fee': {
+                'cost': 0,
+                'currency': this.safeString (order, 'quoteAsset'),
+                'rate': 0,
+            },
+            'postOnly': this.safeBool (order, 'postOnly'),
+            'info': order,
+        };
+    }
+
+    /**
+     * @method
+     * @name bydfi#cancelOrder
+     * @description cancel an order on the exchange
+     * @see https://developers.bydtms.com/en/swap/trade#canceling-an-order
+     * @param {string} id
+     * @param {string} [symbol]
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {string} [params.wallet] string
+     * @returns {object} an [order structure]{@link https://docs.ccxt.com/#/?id=order-structure}
+     */
+    async cancelOrder (id: string, symbol: Str = undefined, params = {}): Promise<Order> {
+        await this.loadMarkets ();
+        const market = this.market (symbol);
+        const request: Dict = {
+            'clientOrderId': id,
+            'symbol': market['id'],
+        };
+        const wallet = this.safeString (params, 'wallet');
+        if (wallet) {
+            request['wallet'] = wallet.toUpperCase ();
+        } else {
+            throw new BadRequest (this.id + ' cancelOrder() requires a wallet parameter');
+        }
+        const response = await this.privatePostV1SwapTradeCancelOrder (request);
+        return this.parseOrder (response, market);
     }
 
     /**

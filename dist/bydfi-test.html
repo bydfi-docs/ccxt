@@ -25,9 +25,13 @@
         //   'wallet': 'W001',
         // });
         // const result = await bydfi.setBatchLeverage(10, ['BTC/USDT:USDT', 'ETH/USDT:USDT'], 'W001');
-        const result = await bydfi.setPositionMode(false, 'BTC/USDT:USDT', {
+        // const result = await bydfi.createOrder('BTC/USDT:USDT', 'limit', 'buy', 123, 105000, {
+        //   'wallet': 'W001',
+        //   'positionSide': 'BOTH',
+        //   'timeInForce': 'GTC',
+        // });
+        const result = await bydfi.cancelOrder('1147854291534245888', 'BTC/USDT:USDT', {
           'wallet': 'W001',
-          'contractType': 'FUTURE',
         });
         console.log('result:', result);
         // 测试所有方法
