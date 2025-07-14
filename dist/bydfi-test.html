@@ -25,12 +25,33 @@
         //   'wallet': 'W001',
         // });
         // const result = await bydfi.setBatchLeverage(10, ['BTC/USDT:USDT', 'ETH/USDT:USDT'], 'W001');
-        // const result = await bydfi.createOrder('BTC/USDT:USDT', 'limit', 'buy', 123, 105000, {
+        // const result = await bydfi.cancelOrder('1147854291534245888', 'BTC/USDT:USDT', {
+        //   'wallet': 'W001',
+        // });
+        // const result = await bydfi.createOrder('BTC/USDT:USDT', 'limit', 'buy', 13, 102000, {
         //   'wallet': 'W001',
         //   'positionSide': 'BOTH',
         //   'timeInForce': 'GTC',
         // });
-        const result = await bydfi.cancelOrder('1147854291534245888', 'BTC/USDT:USDT', {
+        // const result = await bydfi.editOrder('1147923433335451648', 'BTC/USDT:USDT', '', 'buy', 138, 106000, {
+        //   'wallet': 'W001',
+        // });
+        // const result = await bydfi.cancelAllOrders('BTC/USDT:USDT', {
+        //   'wallet': 'W001',
+        // });
+        // const result = await bydfi.cancelBatchOrders('BTC/USDT:USDT', 'W001', ['1149309197587738625']);
+        // const result = await bydfi.editBatchOrders('W001', [{
+        //   'symbol': 'BTC/USDT:USDT',
+        //   'clientOrderId': '1150104317060870145',
+        //   'side': 'BUY',
+        //   'price': 101000,
+        //   'quantity': 15,
+        // }]);
+        // const result = await bydfi.fetchPlanOrders('BTC/USDT:USDT','', '', {
+        //   'wallet': 'W001',
+        // });
+        const result = await bydfi.fetchOrders('BTC/USDT', '', 10, {
+          'contractType': 'FUTURE',
           'wallet': 'W001',
         });
         console.log('result:', result);
