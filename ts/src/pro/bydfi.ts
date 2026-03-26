@@ -32,7 +32,7 @@ export default class bydfi extends bydfiRest {
                 'logo': '',
                 'api': {
                     'ws': {
-                        'public': 'wss://stream.bydfi.com/v1/public/swap',
+                        'public': 'wss://stream.bydfi.com/v1/public/fapi',
                     },
                 },
                 'www': 'https://bydfi.com/',
@@ -50,7 +50,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchOrderBook
      * @description watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
-     * @see https://developers.bydfi.com/en/swap/websocket-market#incremental-depth
+     * @see https://developers.bydfi.com/en/futures/websocket-market#incremental-depth
      * @param {string} symbol unified symbol of the market to fetch the order book for
      * @param {int} [limit] the maximum amount of order book entries to return.
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -64,7 +64,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchOrderBookForSymbols
      * @description watches information on open orders with bid (buy) and ask (sell) prices, volumes and other data
-     * @see https://developers.bydfi.com/en/swap/websocket-market#incremental-depth
+     * @see https://developers.bydfi.com/en/futures/websocket-market#incremental-depth
      * @param {string[]} symbols unified array of symbols
      * @param {int} [limit] the maximum amount of order book entries to return.
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -132,7 +132,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchTicker
      * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
-     * @see https://developers.bydfi.com/en/swap/websocket-market#ticker-by-symbol
+     * @see https://developers.bydfi.com/en/futures/websocket-market#ticker-by-symbol
      * @param {string} symbol unified symbol of the market to fetch the ticker for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -155,7 +155,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchTickers
      * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for all markets of a specific list
-     * @see https://developers.bydfi.com/en/swap/websocket-market#ticker-by-symbol
+     * @see https://developers.bydfi.com/en/futures/websocket-market#ticker-by-symbol
      * @param {string[]} symbols unified symbol of the market to fetch the ticker for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -196,7 +196,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchRealTicker
      * @description watches a price ticker, a statistical calculation with the information calculated over the past 24 hours for a specific market
-     * @see https://developers.bydfi.com/en/swap/websocket-market#latest-price
+     * @see https://developers.bydfi.com/en/futures/websocket-market#latest-price
      * @param {string} symbol unified symbol of the market to fetch the ticker for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [real ticker structure]
@@ -286,7 +286,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchOHLCV
      * @description watches historical candlestick data containing the open, high, low, and close price, and the volume of a market
-     * @see https://developers.bydfi.com/en/swap/websocket-market#candlestick-data
+     * @see https://developers.bydfi.com/en/futures/websocket-market#candlestick-data
      * @param {string} symbol unified symbol of the market to fetch OHLCV data for
      * @param {string} timeframe the length of time each candle represents
      * @param {int} [since] timestamp in ms of the earliest candle to fetch
@@ -305,7 +305,7 @@ export default class bydfi extends bydfiRest {
      * @method
      * @name bydfi#watchOHLCVForSymbols
      * @description watches historical candlestick data containing the open, high, low, and close price, and the volume of a market
-     * @see https://developers.bydfi.com/en/swap/websocket-market#candlestick-data
+     * @see https://developers.bydfi.com/en/futures/websocket-market#candlestick-data
      * @param {string[][]} symbolsAndTimeframes array of arrays containing unified symbols and timeframes to fetch OHLCV data for, example [['BTC/USDT', '1m'], ['LTC/USDT', '5m']]
      * @param {int} [since] timestamp in ms of the earliest candle to fetch
      * @param {int} [limit] the maximum amount of candles to fetch

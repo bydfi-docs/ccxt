@@ -139,22 +139,22 @@ export default class bydfi extends Exchange {
                 },
                 'www': 'https://bydfi.com/',
                 'doc': 'https://developers.bydfi.com/',
-                'referral': 'https://www.bydfi.com/zh/swap/btc-usdt',
+                'referral': 'https://www.bydfi.com/zh/futures/btc-usdt',
             },
             'api': {
                 'public': {
                     'get': {
                         'v1/public/api_limit': 1,
-                        'v1/swap/market/exchange_info': 1,
-                        'v1/swap/market/ticker/24hr': 1,
-                        'v1/swap/market/depth': 1,
-                        'v1/swap/market/trades': 1,
-                        'v1/swap/market/klines': 1,
-                        'v1/swap/market/ticker/price': 1,
-                        'v1/swap/market/mark_price': 1,
-                        'v1/swap/market/funding_rate': 1,
-                        'v1/swap/market/funding_rate_history': 1,
-                        'v1/swap/market/risk_limit': 1,
+                        'v1/fapi/market/exchange_info': 1,
+                        'v1/fapi/market/ticker/24hr': 1,
+                        'v1/fapi/market/depth': 1,
+                        'v1/fapi/market/trades': 1,
+                        'v1/fapi/market/klines': 1,
+                        'v1/fapi/market/ticker/price': 1,
+                        'v1/fapi/market/mark_price': 1,
+                        'v1/fapi/market/funding_rate': 1,
+                        'v1/fapi/market/funding_rate_history': 1,
+                        'v1/fapi/market/risk_limit': 1,
                     },
                 },
                 'private': {
@@ -163,16 +163,16 @@ export default class bydfi extends Exchange {
                         'v1/account/transfer_records': 1,
                         'v1/spot/deposit_records': 1,
                         'v1/spot/withdraw_records': 1,
-                        'v1/swap/account/balance': 1,
-                        'v1/swap/user_data/assets_margin': 1,
-                        'v1/swap/user_data/position_side/dual': 1,
-                        'v1/swap/trade/leverage': 1,
-                        'v1/swap/trade/open_order': 1,
-                        'v1/swap/trade/plan_order': 1,
-                        'v1/swap/trade/history_order': 1,
-                        'v1/swap/trade/history_trade': 1,
-                        'v1/swap/trade/position_history': 1,
-                        'v1/swap/trade/positions': 1,
+                        'v1/fapi/account/balance': 1,
+                        'v1/fapi/user_data/assets_margin': 1,
+                        'v1/fapi/user_data/position_side/dual': 1,
+                        'v1/fapi/trade/leverage': 1,
+                        'v1/fapi/trade/open_order': 1,
+                        'v1/fapi/trade/plan_order': 1,
+                        'v1/fapi/trade/history_order': 1,
+                        'v1/fapi/trade/history_trade': 1,
+                        'v1/fapi/trade/position_history': 1,
+                        'v1/fapi/trade/positions': 1,
                         'v1/agent/teams': 1,
                         'v1/agent/agent_links': 1,
                         'v1/agent/regular_overview': 1,
@@ -185,17 +185,17 @@ export default class bydfi extends Exchange {
                     },
                     'post': {
                         'v1/account/transfer': 1,
-                        'v1/swap/user_data/margin_type': 1,
-                        'v1/swap/user_data/position_side/dual': 1,
-                        'v1/swap/trade/place_order': 1,
-                        'v1/swap/trade/leverage': 1,
-                        'v1/swap/trade/batch_leverage': 1,
-                        'v1/swap/trade/cancel_order': 1,
-                        'v1/swap/trade/edit_order': 1,
-                        'v1/swap/trade/cancel_all_order': 1,
-                        'v1/swap/trade/batch_cancel_order': 1,
-                        'v1/swap/trade/batch_edit_order': 1,
-                        'v1/swap/trade/batch_leverage_margin': 1,
+                        'v1/fapi/user_data/margin_type': 1,
+                        'v1/fapi/user_data/position_side/dual': 1,
+                        'v1/fapi/trade/place_order': 1,
+                        'v1/fapi/trade/leverage': 1,
+                        'v1/fapi/trade/batch_leverage': 1,
+                        'v1/fapi/trade/cancel_order': 1,
+                        'v1/fapi/trade/edit_order': 1,
+                        'v1/fapi/trade/cancel_all_order': 1,
+                        'v1/fapi/trade/batch_cancel_order': 1,
+                        'v1/fapi/trade/batch_edit_order': 1,
+                        'v1/fapi/trade/batch_leverage_margin': 1,
                         'v1/agent/internal_withdrawal': 1,
                     },
                 },
@@ -277,12 +277,12 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchMarkets
      * @description Obtaining trading rules and pairs
-     * @see https://developers.bydfi.com/en/swap/market#fetching-trading-rules-and-pairs
+     * @see https://developers.bydfi.com/en/futures/market#fetching-trading-rules-and-pairs
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object[]} an array of objects representing market data
      */
     async fetchMarkets (params = {}): Promise<Market[]> {
-        const response = await this.publicGetV1SwapMarketExchangeInfo (params);
+        const response = await this.publicGetV1FapiMarketExchangeInfo (params);
         const data = this.safeList (response, 'data', []);
         return this.parseMarkets (data);
     }
@@ -353,7 +353,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchTicker
      * @description Please note that without the symbol parameter, it will return data for all trading pairs, which not only has a large volume of data but also carries a very high weight.
-     * @see https://developers.bydfi.com/en/swap/market#24hr-price-change-statistics
+     * @see https://developers.bydfi.com/en/futures/market#24hr-price-change-statistics
      * @param {string} symbol unified symbol of the market to fetch the ticker for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [ticker structure]{@link https://docs.ccxt.com/#/?id=ticker-structure}
@@ -366,7 +366,7 @@ export default class bydfi extends Exchange {
         }
         const market = this.market (symbol);
         request['symbol'] = market['id'];
-        const response = await this.publicGetV1SwapMarketTicker24hr (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketTicker24hr (this.extend (request, params));
         const tickers = this.safeList (response, 'data', []);
         if (tickers.length === 0) {
             return null;
@@ -442,7 +442,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchFundingRate
      * @description fetch the current funding rate
-     * @see https://developers.bydfi.com/en/swap/market#recent-funding-rate
+     * @see https://developers.bydfi.com/en/futures/market#recent-funding-rate
      * @param {string} symbol trading pair
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [funding rate structure]{@link https://docs.ccxt.com/#/?id=funding-rate-structure}
@@ -455,7 +455,7 @@ export default class bydfi extends Exchange {
         const market = this.market (symbol);
         const request: Dict = {};
         request['symbol'] = market['id'];
-        const response = await this.publicGetV1SwapMarketFundingRate (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketFundingRate (this.extend (request, params));
         const data = this.safeDict (response, 'data', {});
         return this.parseSwapFundingRate (data);
     }
@@ -464,7 +464,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchFundingRateHistory
      * @description fetch funding rate history
-     * @see https://developers.bydfi.com/en/swap/market#historical-funding-rates
+     * @see https://developers.bydfi.com/en/futures/market#historical-funding-rates
      * @param {string} symbol unified market symbol of the market orders were made in
      * @param {int} [since] the earliest time in ms to fetch orders for
      * @param {int} [limit] the maximum number is 1000, default 100
@@ -491,7 +491,7 @@ export default class bydfi extends Exchange {
             params = this.omit (params, [ 'endTime' ]);
             request['endTime'] = endTime;
         }
-        const response = await this.publicGetV1SwapMarketFundingRateHistory (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketFundingRateHistory (this.extend (request, params));
         const data = this.safeList (response, 'data', []);
         return this.parseSwapFundingHistory (data);
     }
@@ -516,7 +516,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchOrderBook
      * @description Trading pair depth information.
-     * @see https://developers.bydfi.com/en/swap/market#depth-information
+     * @see https://developers.bydfi.com/en/futures/market#depth-information
      * @param {string} symbol unified symbol of the market to fetch the market depth for
      * @param {int} [limit] the maximum number of market depth entries to fetch, default 500, available values:[5, 10, 20, 50, 100, 500, 1000]
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -537,7 +537,7 @@ export default class bydfi extends Exchange {
         if (limit) {
             request['limit'] = limit;
         }
-        const response = await this.publicGetV1SwapMarketDepth (request);
+        const response = await this.publicGetV1FapiMarketDepth (request);
         const data = this.safeDict (response, 'data', {});
         return this.parseOrderBook (data, data.symbol, this.milliseconds (), 'bids', 'asks', 'price', 'amount');
     }
@@ -546,7 +546,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchTrades
      * @description Retrieve recent order book trades.
-     * @see https://developers.bydfi.com/en/swap/market#recent-trades
+     * @see https://developers.bydfi.com/en/futures/market#recent-trades
      * @param {string} symbol unified symbol of the market to fetch the trades for
      * @param {int} [since] from which transaction id is returned. Pre-set return the latest transaction record
      * @param {int} [limit] the maximum number of trades to fetch, default 500
@@ -572,7 +572,7 @@ export default class bydfi extends Exchange {
         if (limit) {
             request['limit'] = limit;
         }
-        const response = await this.publicGetV1SwapMarketTrades (request);
+        const response = await this.publicGetV1FapiMarketTrades (request);
         const trades = this.safeList (response, 'data', []);
         return this.parseTrades (trades, market, since, limit);
     }
@@ -616,7 +616,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchOHLCV
      * @description fetches historical candlestick data containing the open, high, low, and close price, and the volume of a market
-     * @see https://developers.bydfi.com/en/swap/market#candlestick-data
+     * @see https://developers.bydfi.com/en/futures/market#candlestick-data
      * @param {string} symbol unified symbol of the market to fetch OHLCV data for
      * @param {string} timeframe the length of time each candle represents
      * @param {int} [since] timestamp in ms of the earliest candle to fetch
@@ -651,7 +651,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' fetchOHLCV endTime is required');
         }
-        const response = await this.publicGetV1SwapMarketKlines (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketKlines (this.extend (request, params));
         const OHLCVs = this.safeList (response, 'data', []);
         return this.parseOHLCVs (OHLCVs, market, timeframe, since, limit);
     }
@@ -684,7 +684,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchLastPrice
      * @description fetches mark price for the market
-     * @see https://developers.bydfi.com/en/swap/market#latest-price
+     * @see https://developers.bydfi.com/en/futures/market#latest-price
      * @param {string|undefined} symbol unified symbol of the market to fetch the last price
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object[]} a list of lastprice structures
@@ -696,7 +696,7 @@ export default class bydfi extends Exchange {
             const market = this.market (symbol);
             request['symbol'] = market['id'];
         }
-        const response = await this.publicGetV1SwapMarketTickerPrice (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketTickerPrice (this.extend (request, params));
         const data = this.safeList (response, 'data', []);
         return this.parsePrice (data);
     }
@@ -723,7 +723,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchMarkPrice
      * @description fetches mark price for the market
-     * @see https://developers.bydfi.com/en/swap/market#mark-price
+     * @see https://developers.bydfi.com/en/futures/market#mark-price
      * @param {string} symbol unified symbol of the market to fetch the ticker for
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a dictionary of mark price structures
@@ -737,7 +737,7 @@ export default class bydfi extends Exchange {
         const request = {
             'symbol': market['id'],
         };
-        const response = await this.publicGetV1SwapMarketMarkPrice (this.extend (request, params));
+        const response = await this.publicGetV1FapiMarketMarkPrice (this.extend (request, params));
         const data = this.safeDict (response, 'data', {});
         return this.parseSwapTicker (data);
     }
@@ -835,8 +835,8 @@ export default class bydfi extends Exchange {
      * @see https://developers.bydfi.com/en/account#asset-transfer-between-accounts
      * @param {string} code unified currency code
      * @param {float} amount amount to transfer
-     * @param {string} fromAccount account to transfer from, source wallet type SPOT / SWAP / FUND
-     * @param {string} toAccount account to transfer to, target wallet type SPOT / SWAP / FUND
+     * @param {string} fromAccount account to transfer from, source wallet type SPOT / UMFUTURE / CMFUTURE / COPY / GRID / FUNDING
+     * @param {string} toAccount account to transfer to, target wallet type SPOT / UMFUTURE / CMFUTURE / COPY / GRID / FUNDING
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [transfer structure]{@link https://docs.ccxt.com/#/?id=transfer-structure}
      */
@@ -1025,9 +1025,9 @@ export default class bydfi extends Exchange {
      * @name bydfi#fetchBalance
      * @description fetch account balance information
      * @see https://developers.bydfi.com/en/account#asset-inquiry
-     * @see https://developers.bydfi.com/en/swap/user#asset-query
+     * @see https://developers.bydfi.com/en/futures/user#asset-query
      * @param {object} [params] extra parameters specific to the exchange API endpoint
-     * @param {string} [params.type] wallet type, ['spot', 'funding', 'W001]
+     * @param {string} [params.type] account type, SPOT/UMFUTURE/CMFUTURE/COPY/GRID/FUNDING
      * @param {string} [params.asset] asset currency, e.g. BTC, USDT
      * @returns {object} a [balance structure]{@link https://docs.ccxt.com/#/?id=balance-structure}
      */
@@ -1036,27 +1036,15 @@ export default class bydfi extends Exchange {
         if (!type) {
             throw new BadRequest (this.id + ' fetchBalance() requires a type parameter');
         }
-        if (type === 'spot' || type === 'fund') {
-            const request = {
-                'walletType': type,
-            };
-            const asset = this.safeString (params, 'asset');
-            if (asset) {
-                request['asset'] = asset;
-            }
-            const response = await this.privateGetV1AccountAssets (request);
-            return this.parseSpotBalance (response);
-        } else {
-            const request = {
-                'wallet': type,
-            };
-            const asset = this.safeString (params, 'asset');
-            if (asset) {
-                request['asset'] = asset;
-            }
-            const response = await this.privateGetV1SwapAccountBalance (request);
-            return this.parseSwapBalance (response);
+        const request = {
+            'account': type.toUpperCase (),
+        };
+        const asset = this.safeString (params, 'asset');
+        if (asset) {
+            request['asset'] = asset;
         }
+        const response = await this.privateGetV1AccountAssets (request);
+        return this.parseSpotBalance (response);
     }
 
     parseSpotBalance (response): Balances {
@@ -1109,7 +1097,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchMarginMode
      * @description fetch swap margin type
-     * @see https://developers.bydfi.com/en/swap/user#margin-mode-query
+     * @see https://developers.bydfi.com/en/futures/user#margin-mode-query
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
@@ -1134,7 +1122,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' fetchMarginMode() requires a wallet parameter');
         }
-        const response = await this.privateGetV1SwapUserDataAssetsMargin (request);
+        const response = await this.privateGetV1FapiUserDataAssetsMargin (request);
         const res = this.safeDict (response, 'data', {});
         return {
             'info': res,
@@ -1147,7 +1135,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#setMarginMode
      * @description set margin mode
-     * @see https://developers.bydfi.com/en/swap/user#change-margin-type-cross-margin
+     * @see https://developers.bydfi.com/en/futures/user#change-margin-type-cross-margin
      * @param {string} marginMode margin mode, value can be ISOLATED or CROSS
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1174,7 +1162,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' setMarginMode() requires a wallet parameter');
         }
-        const response = await this.privatePostV1SwapUserDataMarginType (request);
+        const response = await this.privatePostV1FapiUserDataMarginType (request);
         return this.safeBool (response, 'success');
     }
 
@@ -1182,7 +1170,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchPositionMode
      * @description fetch swap position mode
-     * @see https://developers.bydfi.com/en/swap/user#get-position-mode
+     * @see https://developers.bydfi.com/en/futures/user#get-position-mode
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
@@ -1210,7 +1198,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' fetchPositionMode() requires a settleCoin parameter');
         }
-        const response = await this.privateGetV1SwapUserDataPositionSideDual (request);
+        const response = await this.privateGetV1FapiUserDataPositionSideDual (request);
         return this.safeDict (response, 'data', {});
     }
 
@@ -1218,7 +1206,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#setPositionMode
      * @description convert position side dual
-     * @see https://developers.bydfi.com/en/swap/user#change-position-mode-dual
+     * @see https://developers.bydfi.com/en/futures/user#change-position-mode-dual
      * @param {boolean} hedged true, false; in dual position mode, true for hedge mode, false for one-way position mode
      * @param {string} symbol symbol, e.g. 'BTC-USDT'
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1249,7 +1237,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' fetchPositionMode() requires a settleCoin parameter');
         }
-        const response = await this.privatePostV1SwapUserDataPositionSideDual (request);
+        const response = await this.privatePostV1FapiUserDataPositionSideDual (request);
         return this.safeBool (response, 'success');
     }
 
@@ -1257,7 +1245,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchLeverage
      * @description fetch leverage for single trading pair
-     * @see https://developers.bydfi.com/en/swap/trade#get-leverage-for-single-trading-pair
+     * @see https://developers.bydfi.com/en/futures/trade#get-leverage-for-single-trading-pair
      * @param {string} symbol
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.wallet] string
@@ -1278,7 +1266,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' fetchLeverage() requires a wallet parameter');
         }
-        const response = await this.privateGetV1SwapTradeLeverage (request);
+        const response = await this.privateGetV1FapiTradeLeverage (request);
         const res = this.safeDict (response, 'data', {});
         return {
             'info': res,
@@ -1293,7 +1281,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#setLeverage
      * @description set leverage for single trading pair
-     * @see https://developers.bydfi.com/en/swap/trade#set-leverage-for-single-trading-pair
+     * @see https://developers.bydfi.com/en/futures/trade#set-leverage-for-single-trading-pair
      * @param {number} leverage
      * @param {string} [symbol]
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1319,7 +1307,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' setLeverage() requires a wallet parameter');
         }
-        const response = await this.privatePostV1SwapTradeLeverage (request);
+        const response = await this.privatePostV1FapiTradeLeverage (request);
         return this.safeBool (response, 'success');
     }
 
@@ -1327,7 +1315,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#createOrder
      * @description create an order on the exchange
-     * @see https://developers.bydfi.com/swap/trade#placing-an-order
+     * @see https://developers.bydfi.com/futures/trade#placing-an-order
      * @param {string} symbol unified symbol of the market to create an order in
      * @param {string} type 'market' or 'limit'
      * @param {string} side 'buy' or 'sell'
@@ -1419,7 +1407,7 @@ export default class bydfi extends Exchange {
         if (workingType) {
             request['workingType'] = workingType.toUpperCase ();
         }
-        const response = await this.privatePostV1SwapTradePlaceOrder (request);
+        const response = await this.privatePostV1FapiTradePlaceOrder (request);
         const data = this.safeDict (response, 'data', {});
         return this.parseOrder (data);
     }
@@ -1460,7 +1448,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#cancelOrder
      * @description cancel an order on the exchange
-     * @see https://developers.bydfi.com/en/swap/trade#canceling-an-order
+     * @see https://developers.bydfi.com/en/futures/trade#canceling-an-order
      * @param {string} id
      * @param {string} [symbol]
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1480,7 +1468,7 @@ export default class bydfi extends Exchange {
         } else {
             throw new BadRequest (this.id + ' cancelOrder() requires a wallet parameter');
         }
-        const response = await this.privatePostV1SwapTradeCancelOrder (request);
+        const response = await this.privatePostV1FapiTradeCancelOrder (request);
         const data = this.safeDict (response, 'data', {});
         return this.parseOrder (data);
     }
@@ -1489,7 +1477,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#editOrder
      * @description edit an order on the exchange
-     * @see https://developers.bydfi.com/en/swap/trade#editing-an-order
+     * @see https://developers.bydfi.com/en/futures/trade#editing-an-order
      * @param {string} id
      * @param {string} symbol
      * @param {string} type
@@ -1520,7 +1508,7 @@ export default class bydfi extends Exchange {
         if (amount) {
             request['quantity'] = amount;
         }
-        const response = await this.privatePostV1SwapTradeEditOrder (request);
+        const response = await this.privatePostV1FapiTradeEditOrder (request);
         const data = this.safeDict (response, 'data', {});
         return this.parseOrder (data);
     }
@@ -1529,7 +1517,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#cancelBatchOrders
      * @description cancel multiple orders on the exchange
-     * @see https://developers.bydfi.com/en/swap/trade#canceling-multiple-orders
+     * @see https://developers.bydfi.com/en/futures/trade#canceling-multiple-orders
      * @param {string} [symbol]
      * @param {string} [wallet]
      * @param {string[]} [ids]
@@ -1552,7 +1540,7 @@ export default class bydfi extends Exchange {
             'wallet': wallet,
             'clientOrderIds': ids,
         };
-        const response = await this.privatePostV1SwapTradeBatchCancelOrder (request);
+        const response = await this.privatePostV1FapiTradeBatchCancelOrder (request);
         return this.parseOrderList (response);
     }
 
@@ -1560,7 +1548,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#cancelAllOrders
      * @description cancel all orders on the exchange
-     * @see https://developers.bydfi.com/en/swap/trade#canceling-all-orders
+     * @see https://developers.bydfi.com/en/futures/trade#canceling-all-orders
      * @param {string} [symbol]
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.wallet] string
@@ -1579,7 +1567,7 @@ export default class bydfi extends Exchange {
         if (wallet) {
             request['wallet'] = wallet.toUpperCase ();
         }
-        const response = await this.privatePostV1SwapTradeCancelAllOrder (request);
+        const response = await this.privatePostV1FapiTradeCancelAllOrder (request);
         const data = this.safeList (response, 'data', []);
         return this.parseOrderList (data);
     }
@@ -1596,7 +1584,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#editBatchOrders
      * @description edit multiple orders on the exchange
-     * @see https://developers.bydfi.com/en/swap/trade#editing-multiple-orders
+     * @see https://developers.bydfi.com/en/futures/trade#editing-multiple-orders
      * @param {string} wallet
      * @param {object[]} orders
      * @returns {object[]} a list of [order structures]{@link https://docs.ccxt.com/#/?id=order-structure}
@@ -1632,7 +1620,7 @@ export default class bydfi extends Exchange {
             'wallet': wallet,
             'editOrders': orders,
         };
-        const response = await this.privatePostV1SwapTradeBatchEditOrder (request);
+        const response = await this.privatePostV1FapiTradeBatchEditOrder (request);
         const data = this.safeList (response, 'data', []);
         return this.parseOrderList (data);
     }
@@ -1641,7 +1629,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchOpenOrders
      * @description fetch all open orders
-     * @see https://developers.bydfi.com/en/swap/trade#pending-order-query
+     * @see https://developers.bydfi.com/en/futures/trade#pending-order-query
      * @param {string} symbol unified market symbol
      * @param {int} [since] not supported
      * @param {int} [limit] not supported
@@ -1675,7 +1663,7 @@ export default class bydfi extends Exchange {
         if (orderId) {
             request['orderId'] = orderId;
         }
-        const response = await this.privateGetV1SwapTradeOpenOrder (request);
+        const response = await this.privateGetV1FapiTradeOpenOrder (request);
         const data = this.safeList (response, 'data', []);
         const orders = [];
         for (let i = 0; i < data.length; i++) {
@@ -1688,7 +1676,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchPlanOrders
      * @description fetch all plan orders
-     * @see https://developers.bydfi.com/en/swap/trade#planned-order-query
+     * @see https://developers.bydfi.com/en/futures/trade#planned-order-query
      * @param {string} symbol unified market symbol
      * @param {int} [since] not supported
      * @param {int} [limit] not supported
@@ -1722,7 +1710,7 @@ export default class bydfi extends Exchange {
         if (orderId) {
             request['orderId'] = orderId;
         }
-        const response = await this.privateGetV1SwapTradePlanOrder (request);
+        const response = await this.privateGetV1FapiTradePlanOrder (request);
         const data = this.safeList (response, 'data', []);
         const orders = [];
         for (let i = 0; i < data.length; i++) {
@@ -1735,7 +1723,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchOrders
      * @description fetch all orders
-     * @see https://developers.bydfi.com/en/swap/trade#historical-orders-query
+     * @see https://developers.bydfi.com/en/futures/trade#historical-orders-query
      * @param {string} symbol unified market symbol
      * @param {int} [since] startTime, query time range cannot exceed 7 days, only supports querying data from the last 6 months
      * @param {int} [limit] limit, default 500, max 1000
@@ -1778,7 +1766,7 @@ export default class bydfi extends Exchange {
         if (endTime) {
             request['endTime'] = endTime;
         }
-        const response = await this.privateGetV1SwapTradeHistoryOrder (request);
+        const response = await this.privateGetV1FapiTradeHistoryOrder (request);
         const data = this.safeList (response, 'data', []);
         const orders = [];
         for (let i = 0; i < data.length; i++) {
@@ -1791,7 +1779,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchMyTrades
      * @description fetch all trades made by the user
-     * @see https://developers.bydfi.com/en/swap/trade#historical-trades-query
+     * @see https://developers.bydfi.com/en/futures/trade#historical-trades-query
      * @param {string} symbol unified market symbol
      * @param {int} [since] startTime, query time range cannot exceed 7 days, only supports querying data from the last 6 months
      * @param {int} [limit] limit, default 500, max 1000
@@ -1834,7 +1822,7 @@ export default class bydfi extends Exchange {
         if (endTime) {
             request['endTime'] = endTime;
         }
-        const response = await this.privateGetV1SwapTradeHistoryTrade (request);
+        const response = await this.privateGetV1FapiTradeHistoryTrade (request);
         const data = this.safeList (response, 'data', []);
         const trades = [];
         for (let i = 0; i < data.length; i++) {
@@ -1847,7 +1835,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchPositionHistory
      * @description fetch historical position profit and loss records for all trading pairs
-     * @see https://developers.bydfi.com/en/swap/trade#query-historical-position-profit-and-loss-records
+     * @see https://developers.bydfi.com/en/futures/trade#query-historical-position-profit-and-loss-records
      * @param {string} symbol unified market symbol
      * @param {int} [since] startTime
      * @param {int} [limit] limit, default 500, max 1000
@@ -1890,7 +1878,7 @@ export default class bydfi extends Exchange {
         if (endTime) {
             request['endTime'] = endTime;
         }
-        const response = await this.privateGetV1SwapTradePositionHistory (request);
+        const response = await this.privateGetV1FapiTradePositionHistory (request);
         const data = this.safeList (response, 'data', []);
         const positions = [];
         for (let i = 0; i < data.length; i++) {
@@ -1903,7 +1891,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#editLeverageMargin
      * @description modify leverage and margin type with one click
-     * @see https://developers.bydfi.com/en/swap/trade#modify-leverage-and-margin-type-with-one-click
+     * @see https://developers.bydfi.com/en/futures/trade#modify-leverage-and-margin-type-with-one-click
      * @param {string} wallet
      * @param {string} contractType
      * @param {string} settleCoin
@@ -1934,7 +1922,7 @@ export default class bydfi extends Exchange {
             'leverage': leverage,
             'marginType': marginType,
         };
-        const response = await this.privatePostV1SwapTradeBatchLeverageMargin (request);
+        const response = await this.privatePostV1FapiTradeBatchLeverageMargin (request);
         return response['success'];
     }
 
@@ -1953,7 +1941,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchPositionsForSymbol
      * @description fetch position list for a symbol
-     * @see https://developers.bydfi.com/en/swap/trade#query-position-information
+     * @see https://developers.bydfi.com/en/futures/trade#query-position-information
      * @param {string} symbol
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.contractType] contract type, value can be FUTURE or DELIVERY
@@ -1978,7 +1966,7 @@ export default class bydfi extends Exchange {
             market = this.market (symbol);
             request['symbol'] = market['id'];
         }
-        const response = await this.privateGetV1SwapTradePositions (request);
+        const response = await this.privateGetV1FapiTradePositions (request);
         const data = this.safeList (response, 'data');
         return this.parsePositionList (data);
     }
@@ -2283,7 +2271,7 @@ export default class bydfi extends Exchange {
      * @method
      * @name bydfi#fetchSwapMarketRiskLimit
      * @description Returning risk limits
-     * @see https://developers.bydfi.com/en/swap/market#risk-limit
+     * @see https://developers.bydfi.com/en/futures/market#risk-limit
      * @param {string} [symbol] symbol
      * @returns {object[]} a list of risk limit structure
      */
@@ -2298,7 +2286,7 @@ export default class bydfi extends Exchange {
             market = this.market (symbol);
             request['symbol'] = market['id'];
         }
-        const response = await this.publicGetV1SwapMarketRiskLimit (request);
+        const response = await this.publicGetV1FapiMarketRiskLimit (request);
         const data = this.safeList (response, 'data');
         return data;
     }
